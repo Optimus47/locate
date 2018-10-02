@@ -1,13 +1,13 @@
 from telnetlib import Telnet
-from requests.exceptions import ConnectionError
 
+h,l,p="sw3115","locator","good&flow!"
 
 try:
-    tn = Telnet(HOST)
+    tn = Telnet(h)
 except:
     print "Connection Failed"
 
 
-tn.write("hello")#this is the username
+tn.write(l+"\n")#this is the username
 
-tn.write("hello@123")#this is the password
+tn.write(p+"\n")#this is the password
