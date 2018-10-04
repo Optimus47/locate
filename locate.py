@@ -1,31 +1,51 @@
 import telnetlib
-#from netmiko import ConnectHandler
+import time
+import re
+import argparse
+from getmac import get_mac_address
 
-h,l,p="sw3115","locator","good&flow!"
-COMMAND="dis clock"
+parser = argparse.ArgumentParser()
+parser.add_argument('-ip', help='Locate ip')
+args = parser.parse_args()
 
-t = telnetlib.Telnet(h)
-t.read_until(b'Username:')
-t.write(l + b'\n')
+print args.ip
+mac_addr = get_mac_address(ip=args.ip)
 
-t.read_until(b'Password:')
-t.write(p + b'\n')
-#    t.write(b'enable\n')
+finish,config = '>','#'
+switches=['sw3115','sw1211','sw1141','sw1221','sw1322','sw1541','sw1571','sw1361','sw1641','ilo1652']
+l,p="locator","good&flow!"
 
-#    t.read_until(b'Password:')
-#    t.write(ENABLE_PASS + b'\n')
-#    t.write(b'terminal length 0\n')
-t.write(COMMAND + b'\n')
-t.write(b'quit\n')
-print t.read_all()
+#mac_addr="00:00:5E:00:01:4D"
 
-#    time.sleep(5)
+mac_addr_plain = mac_addr.replace(':', '').lower()
+mac_addr_hp = '-'.join(mac_addr_plain[i:i+4] for i in range(0,11,4))
+mac_addr_cisco = mac_addr_hp.replace('-','.')
 
-#    output = t.read_very_eager().decode('utf-8')
-#    print(output)
+print mac_addr, mac_addr_plain, mac_addr_hp, mac_addr_cisco
 
-## old Connection
+print "Locate on",len(switches),"h3c switches"
+for h in switches:
+    print "Switch",h
+    try:
+        tn = telnetlib.Telnet(h, timeout=10)
+        tn.read_until(b'Username:')
+        tn.write(l + b'\n')
+        tn.read_until(b'Password:')
+        tn.write(p + b'\n')
+        tn.read_until(finish)
+        tn.write('screen-length disable' + '\n')
+        tn.read_until(finish)
+        tn.write('dis mac-address ' + mac_addr_hp + '\n')
+        #tn.interact()
+        mac_table = tn.read_until(finish)
 
-#tn.write(l+"\n")#this is the username
+        mac_port = re.findall('GigabitEthernet\d/\d/\d{,2}',mac_table)
 
-#tn.write(p+"\n")#this is the password
+        for port in mac_port:
+            tn.write('dis cur int ' + port + '\n')
+            tn.read_until(config)
+            print tn.read_until(config)
+            tn.read_until(finish)
+
+    except:
+        print "Error connecting to host", h
